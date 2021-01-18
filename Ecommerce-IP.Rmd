@@ -1,0 +1,632 @@
+---
+title: "Russian_brand_sales_and_marketing_analysis"
+output: html_document
+---
+
+```{r}
+
+
+
+```
+
+## Russian brand sales and marketing analysis.
+### Research Question.
+Kira Plastinina (Links to an external site.) is a Russian brand that is sold through a defunct chain of retail stores in Russia, Ukraine, Kazakhstan, Belarus, China, Philippines, and Armenia. The brand’s Sales and Marketing team would like to understand their customer’s behavior from data that they have collected over the past year.
+
+ Libraries
+ 
+```{r}
+install.packages('data.table')
+install.packages('caret')
+install.packages('psych')
+install.packages('Amelia')
+install.packages('mice')
+install.packages('GGally')
+install.packages('rpart')
+install.packages('randomForest')
+
+library(tidyverse)
+library(data.table)
+library(ggplot2)
+library(caret)
+library(psych)
+library(Amelia)
+library(mice)
+library(GGally)
+library(rpart)
+library(randomForest)
+
+```
+
+```{r}
+ecommerce <- read.csv('http://bit.ly/EcommerceCustomersDataset')
+head(ecommerce)
+
+```
+
+###### data structure 
+```{r}
+str(ecommerce)
+
+```
+
+###### Preview
+```{r}
+head(ecommerce, 6)
+```
+
+##### last 6 entries of the dataset
+```{r}
+tail(ecommerce, 6)
+
+```
+
+##### check for data description
+```{r}
+summary(ecommerce)
+
+```
+
+##### checking for size and shape of dataframe
+```{r}
+dim(ecommerce)
+
+```
+### Data Preprocessing.
+#### i. Completeness
+This is achieved by checking for missing values if any imputed to ensure correct predictions are made.
+
+```{r}
+total_null <- sum(is.na(ecommerce))
+total_null
+```
+
+##### missing values per column.
+```{r}
+lapply(ecommerce, function(x) sum(is.na(x)))
+
+```
+Percentage per column
+```{r}
+pMiss <- function(x){sum(is.na(x))/length(x)*100}
+apply(ecommerce,2,pMiss)
+apply(ecommerce,1,pMiss)
+
+```
+
+
+Imputation of missing values
+```{r include=FALSE}
+ecommerce1 <- mice(ecommerce,m=5,maxit=50,meth='pmm',seed=500)
+summary(ecommerce1)
+
+```
+
+
+```{r}
+ecommerce1$imp$Administrative
+
+```
+```{r}
+ecommerce1 <- complete(ecommerce1, 1)
+head(ecommerce1,6)
+```
+checking if there are anymore missing values
+```{r}
+lapply(ecommerce1, function(x) sum(is.na(x)))
+```
+####ii. Cosistency.
+Consistency of values in a dataset is achieved when there are do duplicated entries in the data.
+
+```{r}
+
+duplicated_rows <- ecommerce1[duplicated(ecommerce1), ]
+duplicated_rows
+
+```
+
+##### iii. Relevance.
+This is achieved by ensuring all columns/ features provided for the analysis are relevant to the study.
+
+##### iv. Accuracy.
+Achieved by checking all entries are correct.
+
+Outliers.
+
+```{r}
+colnames(ecommerce1)
+
+
+```
+
+Using Boxplots to check for outliers.
+
+```{r}
+boxplot(ecommerce1$Administrative)$out
+
+```
+
+```{r}
+boxplot(ecommerce1$Informational)$out
+
+```
+
+```{r}
+boxplot(ecommerce1$Administrative_Duration)$out
+
+```
+
+```{r}
+boxplot(ecommerce1$Informational_Duration)$out
+
+```
+
+
+```{r}
+boxplot(ecommerce1$ExitRates)$out
+
+```
+
+```{r}
+boxplot(ecommerce1$Revenue)$out
+
+```
+
+
+
+
+### EXPLORATORY DATA ANALYSIS.
+#### UNIVARIATE ANALYSIS.
+
+a. Administrative.
+a. Daily time spent on Site
+```{r}
+mean(ecommerce1$Administrative, trim = 0, na.rm=FALSE)
+median(ecommerce1$Administrative,na.rm=FALSE)
+range(ecommerce1$Administrative,na.rm=FALSE, finite=FALSE)
+quantile(ecommerce1$Administrative, probs=seq(0, 1,0.25), na.rm=FALSE, names=TRUE, type=7)
+var(ecommerce1$Administrative)
+sd(ecommerce1$Administrative,na.rm=FALSE)
+```
+
+mode
+```{r}
+getmode <- function(v){
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+```
+
+```{r}
+adm_mode <- getmode(ecommerce1$Administrative)
+adm_mode
+```
+
+ Visualizing Administrative colmn.
+```{r}
+plot_adm <- density(ecommerce1$Administrative, xlab="Administrative")
+plot(plot_adm)
+```
+Most users who visited the administrative pages were between 0 and 3 users.
+
+b. Administrative Duration.
+```{r}
+mean(ecommerce1$Administrative_Duration , trim = 0, na.rm=FALSE)
+median(ecommerce1$Administrative_Duration ,na.rm=FALSE)
+range(ecommerce1$Administrative_Duration ,na.rm=FALSE, finite=FALSE)
+quantile(ecommerce1$Administrative_Duration , probs=seq(0, 1,0.25), na.rm=FALSE, names=TRUE, type=7)
+var(ecommerce1$Administrative_Duration )
+sd(ecommerce1$Administrative_Duration ,na.rm=FALSE)
+```
+
+mode
+```{r}
+getmode <- function(v){
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+```
+
+```{r}
+adm_dur_mode <- getmode(ecommerce1$Administrative_Duration)
+adm_dur_mode
+```
+
+ Visualizing Administratve Duration.
+```{r}
+d <- density(ecommerce1$Administrative_Duration, xlab="Administrative Duration")
+plot(d)
+```
+Highest duration spent on the administrative pages lies between 0 to 200 minutes.
+
+
+#### c. Informational Duration
+
+```{r}
+mean(ecommerce1$Informational_Duration , trim = 0, na.rm=FALSE)
+median(ecommerce1$Informational_Duration ,na.rm=FALSE)
+range(ecommerce1$Informational_Duration ,na.rm=FALSE, finite=FALSE)
+quantile(ecommerce1$Informational_Duration , probs=seq(0, 1,0.25), na.rm=FALSE, names=TRUE, type=7)
+var(ecommerce1$Informational_Duration )
+sd(ecommerce1$Informational_Duration ,na.rm=FALSE)
+```
+
+mode
+```{r}
+getmode <- function(v){
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+```
+
+```{r}
+info_dur_mode <- getmode(ecommerce1$Informational_Duration)
+info_dur_mode
+```
+
+ Visualizing Information Duration.
+```{r}
+par(mfrow=c(1,2))
+info <- density(ecommerce1$Informational , xlab="Informational  Duration")
+plot(info)
+
+par(mfrow=c(2,2))
+info_duration <- density(ecommerce1$Informational_Duration, xlab="Information  Duration")
+plot(info_duration)
+
+
+```
+
+#### d. Product Related_Duration
+
+```{r}
+mean(ecommerce1$ProductRelated_Duration , trim = 0, na.rm=FALSE)
+median(ecommerce1$ProductRelated_Duration ,na.rm=FALSE)
+range(ecommerce1$ProductRelated_Duration ,na.rm=FALSE, finite=FALSE)
+quantile(ecommerce1$ProductRelated_Duration , probs=seq(0, 1,0.25), na.rm=FALSE, names=TRUE, type=7)
+var(ecommerce1$ProductRelated_Duration )
+sd(ecommerce1$ProductRelated_Duration ,na.rm=FALSE)
+```
+
+mode
+```{r}
+getmode <- function(v){
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+```
+
+```{r}
+productrelated_mode <- getmode(ecommerce1$ProductRelated)
+productrelated_mode
+```
+
+Visualizing product related Duration.
+```{r}
+par(mfrow=c(1,2))
+product <- density(ecommerce1$ProductRelated, xlab="Product Related")
+plot(info)
+
+par(mfrow=c(2,2))
+product_related <- density(ecommerce1$ProductRelated_Duration, xlab="Product Related Duration")
+plot(info_duration)
+```
+
+
+
+e. Bounce Rates
+```{r}
+mean(ecommerce1$BounceRates , trim = 0, na.rm=FALSE)
+median(ecommerce1$BounceRates ,na.rm=FALSE)
+range(ecommerce1$BounceRates ,na.rm=FALSE, finite=FALSE)
+quantile(ecommerce1$BounceRates , probs=seq(0, 1,0.25), na.rm=FALSE, names=TRUE, type=7)
+var(ecommerce1$BounceRates )
+sd(ecommerce1$BounceRates ,na.rm=FALSE)
+```
+
+mode
+```{r}
+getmode <- function(v){
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+```
+
+```{r}
+bouncerate_mode <- getmode(ecommerce1$BounceRates)
+bouncerate_mode
+```
+
+ Visualizing time spent on Site.
+```{r}
+hist(ecommerce1$BounceRates, breaks=12, xlabs='Bounce Rates', main='Distribution of Bounce Rates')
+```
+
+Most bounce rates lied at 0.00 to 0.02
+
+
+##### e. Exit Rates
+```{r}
+mean(ecommerce1$ExitRates , trim = 0, na.rm=FALSE)
+median(ecommerce1$ExitRates ,na.rm=FALSE)
+range(ecommerce1$ExitRates ,na.rm=FALSE, finite=FALSE)
+quantile(ecommerce1$ExitRates , probs=seq(0, 1,0.25), na.rm=FALSE, names=TRUE, type=7)
+var(ecommerce1$ExitRates )
+sd(ecommerce1$ExitRates ,na.rm=FALSE)
+```
+
+mode
+```{r}
+getmode <- function(v){
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+```
+
+```{r}
+exitrate_mode <- getmode(ecommerce1$ExitRates)
+exitrate_mode
+```
+
+ Visualizing Exit Rates.
+```{r}
+d <- density(ecommerce1$ExitRates, xlab="Exit Rates")
+plot(d)
+```
+
+ ##### f. Page Value
+```{r}
+mean(ecommerce1$PageValues , trim = 0, na.rm=FALSE)
+median(ecommerce1$PageValues ,na.rm=FALSE)
+range(ecommerce1$PageValues ,na.rm=FALSE, finite=FALSE)
+quantile(ecommerce1$PageValues , probs=seq(0, 1,0.25), na.rm=FALSE, names=TRUE, type=7)
+var(ecommerce1$PageValues )
+sd(ecommerce1$PageValues ,na.rm=FALSE)
+```
+mode
+```{r}
+page_valuemode <- getmode(ecommerce1$PageValues)
+page_valuemode
+```
+
+Visualizing Page Value.
+```{r}
+pagevalue <- density(ecommerce1$PageValues, xlab="Exit Rates")
+plot(pagevalue)
+```
+
+
+##### g. Special Day
+
+```{r}
+hist(ecommerce1$PageValues, breaks=12, xlabs='Page Values ', main='Distribution of Page Values ')
+```
+```{r}
+str(ecommerce1)
+```
+### BIVARIATE ANALYSIS.
+#### Covariance.
+```{R}
+head(ecommerce1)
+
+ecommerce_cov <- ecommerce1[,c(1,2,3,4,5,6,7,8,9,10,12,13,14,15)]
+
+cov(ecommerce_cov)
+```
+
+#### Correlation.
+```{R}
+ecommerce1.cor<-cor(ecommerce_cov, method=c('spearman'))
+
+```
+
+visualizing
+```{R}
+install.packages('corrplot')
+library(corrplot)
+corrplot(ecommerce1.cor)
+
+
+```
+Administrative and administrative duration are highly corelated.
+Information and information duration are correlated.
+Also product related duraion and product related.
+
+
+1. Administrative Duration and Administrative
+
+```{r}
+plot(ecommerce1$Administrative_Duration, ecommerce1$Administrative, xlab="Administrative_Duration", ylab="Administrative")
+
+```
+An increase in administrative page visits correspondingly increased with the visits of administrative duration pages.
+
+2. Informational Duration and Informational Page Visits.
+```{r}
+plot(ecommerce1$Informational_Duration, ecommerce1$Informational, xlab="Informational_Duration", ylab="Informational")
+
+```
+As visits to Informational pages increase, Informational Duration page visits equally increases.
+
+
+3.Product Related Duration and Product Related page visists.
+```{r}
+plot(ecommerce1$ProductRelated_Duration, ecommerce1$ProductRelated, xlab="Product Related Duration", ylab="Product Related")
+
+```
+A similar increase was observed when both in Product related duration and product related page visits.
+
+4. Administrative duration and Informational Duration
+```{r}
+plot(ecommerce1$Administrative_Duration, ecommerce1$Informational_Duration, xlab="Administrative_Duration", ylab="Informational_Duration")
+```
+5. Administrative duration and product related duration.
+```{r}
+plot(ecommerce1$ProductRelated_Duration,ecommerce1$Administrative_Duration,  xlab="ProductRelated_Duration", ylab="Administrative_Duration")
+```
+6. Exit rates and Bounce Rate.
+```{r}
+plot(ecommerce1$ExitRates,ecommerce1$BounceRates, xlab="Exit Rate", ylab="Bounce Rate")
+```
+A small increase in bounce rates leads to a significant increase in number of Exit rates.
+
+
+### Implementing Solutions.
+#### Noramilizing numerical columns
+```{r}
+#class variable
+ecommerce.class <- ecommerce1[, 18]
+head(ecommerce.class)
+
+norm <- function(x){
+  return((x-min(x))/(max(x)-min(x)))
+}
+
+ecommerce_new <- as.data.frame(lapply(ecommerce1[,c(1,2,3,4,5,6,7,8,9,10,12,13,14,15)], norm))
+ecommerce.class <- ecommerce1[, 18]
+head(ecommerce_new)
+
+```
+
+Finding number of clusters
+```{R}
+#using elbow method
+pkgs <- c("factoextra",  "NbClust")
+install.packages(pkgs)
+
+library(factoextra)
+library(NbClust)
+
+#standardizing data
+std.ecommerce_new <- scale(ecommerce_new)
+head(std.ecommerce_new)
+
+#Finding optimal number of clusters
+fviz_nbclust(std.ecommerce_new, kmeans, method = "wss") +
+    geom_vline(xintercept = 4, linetype = 2)+
+  labs(subtitle = "Elbow method")
+
+```
+
+```{R}
+results <- kmeans(std.ecommerce_new, 3)
+results
+
+#records in each cluster
+results$size
+
+```
+
+```{R}
+#value of cluster center 
+results$centers
+
+```
+```{R}
+#cluster vectors
+results$cluster
+```
+
+```{R}
+table <- table(results$cluster, ecommerce.class)
+table
+
+```
+
+Visualizing Cluster Results to see how features were distributed in clusters.
+1. Administration and Duration.
+```{R}
+par(mfrow = c(1,2), mar = c(5,4,2,2))
+plot(std.ecommerce_new[,1:2], col=results$cluster)
+par(mfrow = c(2,2), mar = c(5,4,2,2))
+plot(std.ecommerce_new[,1:2], col=ecommerce.class)
+
+```
+
+2. Information and Informational Duration
+```{R}
+par(mfrow = c(1,2), mar = c(5,4,2,2))
+plot(std.ecommerce_new[,3:4], col=results$cluster)
+par(mfrow = c(2,2), mar = c(5,4,2,2))
+plot(std.ecommerce_new[,3:4], col=ecommerce.class)
+
+```
+
+3. Product Related and Product Related Duration.
+```{R}
+par(mfrow = c(1,2), mar = c(5,4,2,2))
+plot(std.ecommerce_new[,5:6], col=results$cluster)
+par(mfrow = c(2,2), mar = c(5,4,2,2))
+plot(std.ecommerce_new[,5:6], col=ecommerce.class)
+
+```
+
+4. Bounce rates and Exit Rates distributed in Clusters
+```{R}
+par(mfrow = c(1,2), mar = c(5,4,2,2))
+plot(std.ecommerce_new[,7:8], col=results$cluster)
+par(mfrow = c(2,2), mar = c(5,4,2,2))
+plot(std.ecommerce_new[,7:8], col=ecommerce.class)
+
+```
+
+
+### Hierarchical  Clustering.
+```{r}
+head(ecommerce1)
+
+ecommerce1 <- ecommerce1[,c(1,2,3,4,5,6,7,8,9,10,12,13,14,15)] 
+head(ecommerce1)
+
+#omit nulls
+ecommerce1 <- na.omit(ecommerce1)
+
+#Finding the descriptive statistics.
+
+descriptive_stats <- data.frame(
+  Min = apply(ecommerce1, 2, min),    
+  Med = apply(ecommerce1, 2, median), 
+  Mean = apply(ecommerce1, 2, mean),  
+  SD = apply(ecommerce1, 2, sd),     
+  Max = apply(ecommerce1, 2, max)     
+)
+descriptive_stats <- round(descriptive_stats, 1)
+head(descriptive_stats)
+
+#scaling the features
+ecommerce1 <- scale(ecommerce1)
+head(ecommerce1)
+
+#Apply the hierarchical function
+ecommerce_hie <- dist(ecommerce1, method = "euclidean")
+res.hc <- hclust(ecommerce_hie, method = "ward.D2" )
+
+#Plot the dendrogram
+plot(res.hc, cex=0.6, hang=-1)
+
+```
+
+
+```{R}
+#checking for cluster groups
+clusterGroups <- cutree(res.hc, k=4)
+
+#finding average value for each cluster
+tapply(ecommerce$Revenue,clusterGroups,mean )
+```
+
+### Challenging the Soltion
+###### K means relatively performed well despite the inconsistency in finding the number of clusters.
+###### Hierarchical isn't clear when the clusters branch into smaller independentvalues later. There is overlapping.
+
+
+### Conclusion
+Since K Means performed better, I would recommend it for unsupervised learning models.
+
+### Follow up Questions
+#### 1. Was the data enough for the analysis and modelling?
+Yes
+
+#### 2. Did we have he right data 
+yes
+
